@@ -7,6 +7,8 @@ import (
 	"os"
 
 	"github.com/RezaBG/Inventory-management-api/internal/db"
+	productRoutes "github.com/RezaBG/Inventory-management-api/internal/product"
+
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
@@ -29,6 +31,8 @@ func main() {
 	}
 
 	r := gin.Default()
+
+	productRoutes.RegisterRoutes(r)
 
 	r.GET("/hello", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
