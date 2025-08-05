@@ -7,5 +7,7 @@ func RegisterRoutes(r *gin.Engine) {
 	{
 		products.GET("/", GetProducts)
 		products.POST("/", CreateProduct)
+		products.PUT("/:id", UpdateProduct)
+		products.DELETE("/:id", DeleteProduct)
 	}
 }
