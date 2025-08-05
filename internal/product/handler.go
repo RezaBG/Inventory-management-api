@@ -25,7 +25,7 @@ func (h *Handler) GetProducts(c *gin.Context) {
 	c.JSON(http.StatusOK, products)
 }
 
-func (h *Handler) GetAllProductByID(c *gin.Context) {
+func (h *Handler) GetProductByID(c *gin.Context) {
 	id := c.Param("id")
 
 	product, err := h.svc.GetAllProductByID(id)
