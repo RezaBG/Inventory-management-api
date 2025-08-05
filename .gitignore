@@ -95,3 +95,6 @@ docs/_build/
 # Backup files
 *.bak
 *.backup
+
+# Ignore specific files in the internal/product directory
+todo.md
