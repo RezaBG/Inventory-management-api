@@ -3,66 +3,64 @@ package product
 import (
 	"net/http"
 
-	"github.com/RezaBG/Inventory-management-api/internal/db"
-	"github.com/RezaBG/Inventory-management-api/models"
 	"github.com/gin-gonic/gin"
 )
 
-func GetProducts(c *gin.Context) {
-	var products []models.Product
-	if err := db.DB.Find(&products).Error; err != nil {
+type Handler struct {
+	svc Service
+}
+
+func NewHandler(svc Service) *Handler {
+	return &Handler{svc: svc}
+}
+
+func (h *Handler) GetProducts(c *gin.Context) {
+	products, err := h.svc.GetAllProducts()
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch products"})
 		return
 	}
 	c.JSON(http.StatusOK, products)
 }
 
-func CreateProduct(c *gin.Context) {
-	var product models.Product
-	if err := c.ShouldBindJSON(&product); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
+func (h *Handler) CreateProduct(c *gin.Context) {
+	var input CreateProductInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	if err := db.DB.Create(&product).Error; err != nil {
+
+	createdProduct, err := h.svc.CreateNewProduct(input)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create product"})
 		return
 	}
-	c.JSON(http.StatusCreated, product)
+	c.JSON(http.StatusCreated, createdProduct)
 }
 
-func UpdateProduct(c *gin.Context) {
+func (h *Handler) UpdateProduct(c *gin.Context) {
 	id := c.Param("id")
-
-	var product models.Product
-	if err := db.DB.First(&product, id).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
+	var input UpdateProductInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	if err := c.ShouldBindJSON(&product); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
+	updatedProduct, err := h.svc.UpdateExistingProduct(id, input)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	if err := db.DB.Save(&product).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update product"})
-		return
-	}
-
-	c.JSON(http.StatusOK, product)
+	c.JSON(http.StatusOK, updatedProduct)
 }
 
-func DeleteProduct(c *gin.Context) {
+func (h *Handler) DeleteProduct(c *gin.Context) {
 	id := c.Param("id")
 
-	var product models.Product
-	if err := db.DB.First(&product, id).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
-		return
-	}
-
-	if err := db.DB.Delete(&product).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete product"})
+	err := h.svc.DeleteProductByID(id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 

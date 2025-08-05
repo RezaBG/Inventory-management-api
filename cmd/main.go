@@ -1,44 +1,58 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"os"
 
-	"github.com/RezaBG/Inventory-management-api/internal/db"
-	productRoutes "github.com/RezaBG/Inventory-management-api/internal/product"
+	"github.com/RezaBG/Inventory-management-api/internal/platform/db"
+	"github.com/RezaBG/Inventory-management-api/internal/product"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
 
 func main() {
+	// Load environment variables from .env file
 	err := godotenv.Load(".env")
 	if err != nil {
-		log.Fatal("Error loading .env file")
+		log.Println("Warning: .env file not found, using default environment variables")
 	}
 
-	fmt.Println(" DEBUG: .env values loaded successfully.")
-	fmt.Println("DB_USER:", os.Getenv("DB_USER"))
-	fmt.Println("DB_NAME:", os.Getenv("DB_NAME"))
+	// Connect to the database
+	database, err := db.ConnectDatabase()
+	if err != nil {
+		log.Fatalf("Fatal error: could not connect to database: %v", err)
+	}
 
-	db.ConnectDatabase()
+	// Run database migrations
+	log.Println("Running database migrations...")
+	err = database.AutoMigrate(&product.Product{})
+	if err != nil {
+		log.Fatalf("Fatal error: could not run migrations: %v", err)
+	}
+	log.Println("Database migrations completed successfully.")
+
+	// Dependency Injection wiring
+	productRepository := product.NewRepository(database)
+	productService := product.NewService(productRepository)
+	productHandler := product.NewHandler(productService)
 
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080" // default port
 	}
 
-	r := gin.Default()
+	router := gin.Default()
 
-	productRoutes.RegisterRoutes(r)
+	product.RegisterRoutes(router, productHandler)
 
-	r.GET("/hello", func(c *gin.Context) {
+	router.GET("/hello", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"message": "Hello, World!",
 		})
 	})
 
-	r.Run(":" + port) // listen and serve on ":8080"
+	log.Printf("Server is running on port %s", port)
+	router.Run(":" + port) // listen and serve on ":8080"
 }
