@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/RezaBG/Inventory-management-api/models"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -12,11 +13,6 @@ import (
 var DB *gorm.DB
 
 func ConnectDatabase() {
-	// err := godotenv.Load(".env")
-	// if err != nil {
-	// 	log.Fatal("Error loading .env file", err)
-	// }
-
 	// Load values
 	host := os.Getenv("DB_HOST")
 	port := os.Getenv("DB_PORT")
@@ -43,4 +39,11 @@ func ConnectDatabase() {
 
 	DB = db
 	fmt.Println("Database connection established successfully.")
+
+	err = db.AutoMigrate(&models.Product{})
+	if err != nil {
+		log.Fatal("Failed to migrate database:", err)
+	}
+
+	fmt.Println("Database migration completed successfully.")
 }
