@@ -2,6 +2,7 @@ package product
 
 type Service interface {
 	GetAllProducts() ([]Product, error)
+	GetAllProductByID(id string) (*Product, error)
 	CreateNewProduct(input CreateProductInput) (*Product, error)
 	UpdateExistingProduct(id string, input UpdateProductInput) (*Product, error)
 	DeleteProductByID(id string) error
@@ -17,6 +18,10 @@ func NewService(repo Repository) Service {
 
 func (s *service) GetAllProducts() ([]Product, error) {
 	return s.repo.FindAll()
+}
+
+func (s *service) GetAllProductByID(id string) (*Product, error) {
+	return s.repo.FindByID(id)
 }
 
 func (s *service) CreateNewProduct(input CreateProductInput) (*Product, error) {

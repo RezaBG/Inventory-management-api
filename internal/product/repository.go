@@ -29,7 +29,6 @@ func (r *repository) FindAll() ([]Product, error) {
 func (r *repository) FindByID(id string) (*Product, error) {
 	var product Product
 	err := r.db.First(&product, id).Error
-	// err := r.db.Where("id = ?", id).First(&product).Error
 	return &product, err
 }
 
