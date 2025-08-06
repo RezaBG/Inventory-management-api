@@ -40,12 +40,28 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
-	token, err := h.svc.Login(input)
+	loginResponse, err := h.svc.Login(input)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 		return
 	}
 
 	// On success, we return the token
-	c.JSON(http.StatusOK, gin.H{"token": token})
+	c.JSON(http.StatusOK, gin.H{"token": loginResponse})
+}
+
+func (h *Handler) RefreshToken(c *gin.Context) {
+	var input RefreshTokenInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	response, err := h.svc.RefreshToken(input)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, response)
 }

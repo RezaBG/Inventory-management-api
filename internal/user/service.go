@@ -19,6 +19,7 @@ type Service interface {
 	CreateNewUser(input CreateUserInput) (*User, error)
 	Login(input LoginInput) (*LoginResponse, error)
 	FindByID(id uint) (*User, error)
+	RefreshToken(input RefreshTokenInput) (*AccessTokenResponse, error)
 }
 
 type service struct {
@@ -121,6 +122,37 @@ func (s *service) Login(input LoginInput) (*LoginResponse, error) {
 		RefreshToken: refreshTokenString,
 	}, nil
 
+}
+
+func (s *service) RefreshToken(input RefreshTokenInput) (*AccessTokenResponse, error) {
+	refreshToken, err := s.rtRepo.FindByToken(input.RefreshToken)
+	if err != nil {
+		return nil, fmt.Errorf("invalid refresh token")
+	}
+
+	if time.Now().After(refreshToken.ExpiresAt) {
+		return nil, fmt.Errorf("refresh token has expired")
+	}
+
+	atExpirationMinutes, _ := strconv.Atoi(os.Getenv("ACCESS_TOKEN_EXPIRATION_MINUTES"))
+	if atExpirationMinutes == 0 {
+		atExpirationMinutes = 15
+	}
+
+	claims := jwt.NewWithClaims(
+		jwt.SigningMethodHS256,
+		jwt.RegisteredClaims{
+			Issuer:    os.Getenv("JWT_ISSUER"),
+			Subject:   strconv.FormatUint(uint64(refreshToken.UserID), 10),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * time.Duration(atExpirationMinutes))),
+		})
+
+	newAccessTokenString, err := claims.SignedString([]byte(os.Getenv("JWT_SECRET")))
+	if err != nil {
+		return nil, fmt.Errorf("could not create new access token: %w", err)
+	}
+
+	return &AccessTokenResponse{AccessToken: newAccessTokenString}, nil
 }
 
 func generateSecureRandomToken(length int) (string, error) {
