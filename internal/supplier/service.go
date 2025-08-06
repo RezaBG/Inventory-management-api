@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
 )
 
@@ -30,7 +31,25 @@ func (s *service) CreateNewSupplier(input CreateSupplierInput) (*Supplier, error
 		Email:         input.Email,
 		Phone:         input.Phone,
 	}
-	return s.repo.Save(&newSupplier)
+
+	// the service calls the repository to save data
+	_, err := s.repo.Save(&newSupplier)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		// errors.As checks if the error from GORM can be converted to a PgError
+		if errors.As(err, &pgErr) {
+			// Check if the error code is for a "unique_violation"
+			if pgErr.Code == "23505" {
+				// If it is, we return a much more user-friendly error
+				return nil, fmt.Errorf("supplier with email '%s' already exists", newSupplier.Email)
+			}
+		}
+		// For any other kind of database error, we return a generic message
+		return nil, fmt.Errorf("database error: %w", err)
+	}
+
+	return &newSupplier, nil
+
 }
 
 func (s *service) GetAllSuppliers() ([]Supplier, error) {

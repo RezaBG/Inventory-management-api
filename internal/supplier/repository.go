@@ -43,5 +43,5 @@ func (r *repository) Update(supplier *Supplier) (*Supplier, error) {
 }
 
 func (r *repository) Delete(id string) error {
-	return r.db.Delete(&Supplier{}, id).Error
+	return r.db.Unscoped().Delete(&Supplier{}, id).Error
 }

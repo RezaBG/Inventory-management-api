@@ -3,6 +3,7 @@ package supplier
 import (
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -25,6 +26,12 @@ func (h *Handler) CreateSupplier(c *gin.Context) {
 
 	supplier, err := h.svc.CreateNewSupplier(input)
 	if err != nil {
+		// Check if the error message is our new specific message from the service
+		if strings.Contains(err.Error(), "already exists") {
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			return
+		}
+		// For all other errors, return a generic 500
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create supplier"})
 		return
 	}
