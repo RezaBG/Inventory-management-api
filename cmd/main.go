@@ -29,7 +29,11 @@ func main() {
 
 	// --- Run database migrations ---
 	log.Println("Running database migrations...")
-	err = database.AutoMigrate(&product.Product{}, &user.User{})
+	err = database.AutoMigrate(
+		&product.Product{},
+		&user.User{},
+		&user.RefreshToken{},
+	)
 	if err != nil {
 		log.Fatalf("Fatal error: could not run migrations: %v", err)
 	}
