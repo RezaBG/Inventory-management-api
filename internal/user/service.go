@@ -70,28 +70,32 @@ func (s *service) Login(input LoginInput) (string, error) {
 		return "", fmt.Errorf("invalid credentials")
 	}
 
-	expirationHours, err := strconv.Atoi(os.Getenv("JWT_EXPIRATION_HOURS"))
-	if err != nil {
-		expirationHours = 24 // Default to 24 hours if not set
+	expirationHours, _ := strconv.Atoi(os.Getenv("JWT_EXPIRATION_HOURS"))
+	if expirationHours == 0 {
+		expirationHours = 24
 	}
 
-	claims := jwt.NewWithClaims(jwt.SigningMethodES256, jwt.RegisteredClaims{
-		// Issuer: The entity that issued the token (our app)
-		Issuer: os.Getenv("JWT_ISSUER"),
-		// Subject: The subject of the token (the user ID)
-		Subject: strconv.FormatUint(uint64(user.ID), 10),
-		// ExpiresAt: The expiration time of the token (24 hours from now)
-		ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * time.Duration(expirationHours))),
-	})
+	claims := jwt.NewWithClaims(
+		jwt.SigningMethodHS256,
+		jwt.RegisteredClaims{
+			Issuer:    os.Getenv("JWT_ISSUER"),
+			Subject:   strconv.FormatUint(uint64(user.ID), 10),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * time.Duration(expirationHours))),
+		})
 
 	// Sign the token with a secret key (loaded from environment variable)
-	tokenString, err := claims.SignedString([]byte("JWT_SECRET"))
+	tokenString, err := claims.SignedString([]byte(os.Getenv("JWT_SECRET")))
 	if err != nil {
 		return "", fmt.Errorf("could not create token: %w", err)
 	}
 
 	return tokenString, nil
 
+}
+
+// FundByID retrieves a user by their ID.
+func (s *service) FindByID(id uint) (*User, error) {
+	return s.repo.FindByID(id)
 }
 
 func validatePassword(password string) error {

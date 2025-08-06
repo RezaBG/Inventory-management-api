@@ -5,8 +5,10 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/RezaBG/Inventory-management-api/internal/middleware"
 	"github.com/RezaBG/Inventory-management-api/internal/platform/db"
 	"github.com/RezaBG/Inventory-management-api/internal/product"
+	"github.com/RezaBG/Inventory-management-api/internal/user"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -25,34 +27,53 @@ func main() {
 		log.Fatalf("Fatal error: could not connect to database: %v", err)
 	}
 
-	// Run database migrations
+	// --- Run database migrations ---
 	log.Println("Running database migrations...")
-	err = database.AutoMigrate(&product.Product{})
+	err = database.AutoMigrate(&product.Product{}, &user.User{})
 	if err != nil {
 		log.Fatalf("Fatal error: could not run migrations: %v", err)
 	}
 	log.Println("Database migrations completed successfully.")
 
-	// Dependency Injection wiring
-	productRepository := product.NewRepository(database)
-	productService := product.NewService(productRepository)
-	productHandler := product.NewHandler(productService)
+	// --- Dependency Injection ---
+	// User Feature
+	userRepo := user.NewRepository(database)
+	userSvc := user.NewService(userRepo)
+	userHandler := user.NewHandler(userSvc)
 
+	// Product Feature
+	productRepo := product.NewRepository(database)
+	productSvc := product.NewService(productRepo)
+	productHandler := product.NewHandler(productSvc)
+
+	// --- Middleware ---
+	authMiddleware := middleware.AuthMiddleware(userSvc)
+
+	// --- Setup Router ---
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080" // default port
 	}
-
 	router := gin.Default()
 
-	product.RegisterRoutes(router, productHandler)
-
+	// --- Register Routes ---
 	router.GET("/hello", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"message": "Hello, World!",
 		})
 	})
+	// Register the public /login and /register routes.
+	// product.RegisterRoutes(router, productHandler)
+	user.RegisterAuthRoutes(router, userHandler)
 
+	// Protected Routes (Requires a valid JWT)
+	protectedRoutes := router.Group("/")
+	protectedRoutes.Use(authMiddleware)
+	{
+		product.RegisterRoutes(protectedRoutes, productHandler)
+	}
+
+	// --- Start Server ---
 	log.Printf("Server is running on port %s", port)
 	router.Run(":" + port) // listen and serve on ":8080"
 }
