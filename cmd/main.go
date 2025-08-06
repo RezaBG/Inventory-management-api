@@ -43,7 +43,7 @@ func main() {
 	// User Feature
 	userRepo := user.NewRepository(database)
 	refreshTokenRepo := user.NewRefreshTokenRepository(database)
-	userSvc := user.NewService(userRepo)
+	userSvc := user.NewService(userRepo, refreshTokenRepo)
 	userHandler := user.NewHandler(userSvc)
 
 	// Product Feature

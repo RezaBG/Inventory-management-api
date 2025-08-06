@@ -1,6 +1,8 @@
 package user
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
@@ -15,20 +17,24 @@ import (
 
 type Service interface {
 	CreateNewUser(input CreateUserInput) (*User, error)
-	Login(input LoginInput) (string, error)
+	Login(input LoginInput) (*LoginResponse, error)
 	FindByID(id uint) (*User, error)
 }
 
 type service struct {
-	repo Repository
+	userRepo Repository
+	rtRepo   RefreshTokenRepository
 }
 
-func NewService(repo Repository) Service {
-	return &service{repo: repo}
+func NewService(userRepo Repository, rtRepo RefreshTokenRepository) Service {
+	return &service{
+		userRepo: userRepo,
+		rtRepo:   rtRepo,
+	}
 }
 
 func (s *service) CreateNewUser(input CreateUserInput) (*User, error) {
-	_, err := s.repo.FindByEmail(input.Email)
+	_, err := s.userRepo.FindByEmail(input.Email)
 	if err == nil {
 		return nil, fmt.Errorf("email already in use")
 	}
@@ -52,27 +58,48 @@ func (s *service) CreateNewUser(input CreateUserInput) (*User, error) {
 		Password: string(hashedPassword),
 	}
 
-	if err := s.repo.Save(&newUser); err != nil {
+	if err := s.userRepo.Save(&newUser); err != nil {
 		return nil, err
 	}
 
 	return &newUser, nil
 }
 
-func (s *service) Login(input LoginInput) (string, error) {
-	user, err := s.repo.FindByEmail(input.Email)
+func (s *service) Login(input LoginInput) (*LoginResponse, error) {
+	user, err := s.userRepo.FindByEmail(input.Email)
 	if err != nil {
-		return "", fmt.Errorf("invalid credentials")
+		return nil, fmt.Errorf("invalid credentials")
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.Password))
 	if err != nil {
-		return "", fmt.Errorf("invalid credentials")
+		return nil, fmt.Errorf("invalid credentials")
 	}
 
-	expirationHours, _ := strconv.Atoi(os.Getenv("JWT_EXPIRATION_HOURS"))
-	if expirationHours == 0 {
-		expirationHours = 24
+	// Refresh token logic
+	refreshTokenString, err := generateSecureRandomToken(32)
+	if err != nil {
+		return nil, fmt.Errorf("could not generate refresh token: %w", err)
+	}
+
+	rtExpirationHours, _ := strconv.Atoi(os.Getenv("REFRESH_TOKEN_EXPIRATION_HOURS"))
+	if rtExpirationHours == 0 {
+		rtExpirationHours = 168 // Default to 7 days
+	}
+
+	refreshToken := &RefreshToken{
+		UserID:    user.ID,
+		Token:     refreshTokenString,
+		ExpiresAt: time.Now().Add(time.Hour * time.Duration(rtExpirationHours)),
+	}
+
+	if err := s.rtRepo.Create(refreshToken); err != nil {
+		return nil, fmt.Errorf("could not save refresh token: %w", err)
+	}
+
+	atExpirationMinutes, _ := strconv.Atoi(os.Getenv("ACCESS_TOKEN_EXPIRATION_MINUTES"))
+	if atExpirationMinutes == 0 {
+		atExpirationMinutes = 24
 	}
 
 	claims := jwt.NewWithClaims(
@@ -80,22 +107,33 @@ func (s *service) Login(input LoginInput) (string, error) {
 		jwt.RegisteredClaims{
 			Issuer:    os.Getenv("JWT_ISSUER"),
 			Subject:   strconv.FormatUint(uint64(user.ID), 10),
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * time.Duration(expirationHours))),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * time.Duration(atExpirationMinutes))),
 		})
 
 	// Sign the token with a secret key (loaded from environment variable)
-	tokenString, err := claims.SignedString([]byte(os.Getenv("JWT_SECRET")))
+	accessTokenString, err := claims.SignedString([]byte(os.Getenv("JWT_SECRET")))
 	if err != nil {
-		return "", fmt.Errorf("could not create token: %w", err)
+		return nil, fmt.Errorf("could not create token: %w", err)
 	}
 
-	return tokenString, nil
+	return &LoginResponse{
+		AccessToken:  accessTokenString,
+		RefreshToken: refreshTokenString,
+	}, nil
 
+}
+
+func generateSecureRandomToken(length int) (string, error) {
+	bytes := make([]byte, length)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(bytes), nil
 }
 
 // FundByID retrieves a user by their ID.
 func (s *service) FindByID(id uint) (*User, error) {
-	return s.repo.FindByID(id)
+	return s.userRepo.FindByID(id)
 }
 
 func validatePassword(password string) error {
