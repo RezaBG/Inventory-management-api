@@ -42,6 +42,7 @@ func main() {
 	// --- Dependency Injection ---
 	// User Feature
 	userRepo := user.NewRepository(database)
+	refreshTokenRepo := user.NewRefreshTokenRepository(database)
 	userSvc := user.NewService(userRepo)
 	userHandler := user.NewHandler(userSvc)
 
