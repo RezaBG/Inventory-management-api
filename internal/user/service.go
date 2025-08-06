@@ -3,18 +3,35 @@ package user
 import (
 	"errors"
 	"fmt"
+	"os"
 	"regexp"
+	"strconv"
+	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
+type Service interface {
+	CreateNewUser(input CreateUserInput) (*User, error)
+	Login(input LoginInput) (string, error)
+	FindByID(id uint) (*User, error)
+}
+
+type service struct {
+	repo Repository
+}
+
+func NewService(repo Repository) Service {
+	return &service{repo: repo}
+}
+
 func (s *service) CreateNewUser(input CreateUserInput) (*User, error) {
 	_, err := s.repo.FindByEmail(input.Email)
 	if err == nil {
-		return nil, fmt.Errorf("email already exists")
+		return nil, fmt.Errorf("email already in use")
 	}
-
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, fmt.Errorf("database error: %w", err)
 	}
@@ -40,6 +57,41 @@ func (s *service) CreateNewUser(input CreateUserInput) (*User, error) {
 	}
 
 	return &newUser, nil
+}
+
+func (s *service) Login(input LoginInput) (string, error) {
+	user, err := s.repo.FindByEmail(input.Email)
+	if err != nil {
+		return "", fmt.Errorf("invalid credentials")
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.Password))
+	if err != nil {
+		return "", fmt.Errorf("invalid credentials")
+	}
+
+	expirationHours, err := strconv.Atoi(os.Getenv("JWT_EXPIRATION_HOURS"))
+	if err != nil {
+		expirationHours = 24 // Default to 24 hours if not set
+	}
+
+	claims := jwt.NewWithClaims(jwt.SigningMethodES256, jwt.RegisteredClaims{
+		// Issuer: The entity that issued the token (our app)
+		Issuer: os.Getenv("JWT_ISSUER"),
+		// Subject: The subject of the token (the user ID)
+		Subject: strconv.FormatUint(uint64(user.ID), 10),
+		// ExpiresAt: The expiration time of the token (24 hours from now)
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * time.Duration(expirationHours))),
+	})
+
+	// Sign the token with a secret key (loaded from environment variable)
+	tokenString, err := claims.SignedString([]byte("JWT_SECRET"))
+	if err != nil {
+		return "", fmt.Errorf("could not create token: %w", err)
+	}
+
+	return tokenString, nil
+
 }
 
 func validatePassword(password string) error {
