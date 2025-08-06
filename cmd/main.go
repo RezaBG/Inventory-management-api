@@ -8,6 +8,7 @@ import (
 	"github.com/RezaBG/Inventory-management-api/internal/middleware"
 	"github.com/RezaBG/Inventory-management-api/internal/platform/db"
 	"github.com/RezaBG/Inventory-management-api/internal/product"
+	"github.com/RezaBG/Inventory-management-api/internal/supplier"
 	"github.com/RezaBG/Inventory-management-api/internal/user"
 
 	"github.com/gin-gonic/gin"
@@ -33,6 +34,7 @@ func main() {
 		&product.Product{},
 		&user.User{},
 		&user.RefreshToken{},
+		&supplier.Supplier{},
 	)
 	if err != nil {
 		log.Fatalf("Fatal error: could not run migrations: %v", err)
@@ -50,6 +52,11 @@ func main() {
 	productRepo := product.NewRepository(database)
 	productSvc := product.NewService(productRepo)
 	productHandler := product.NewHandler(productSvc)
+
+	// Supplier Feature
+	supplierRepo := supplier.NewRepository(database)
+	supplierSvc := supplier.NewService(supplierRepo)
+	supplierHandler := supplier.NewHandler(supplierSvc)
 
 	// --- Middleware ---
 	authMiddleware := middleware.AuthMiddleware(userSvc)
@@ -76,6 +83,7 @@ func main() {
 	protectedRoutes.Use(authMiddleware)
 	{
 		product.RegisterRoutes(protectedRoutes, productHandler)
+		supplier.RegisterRoutes(protectedRoutes, supplierHandler)
 	}
 
 	// --- Start Server ---
