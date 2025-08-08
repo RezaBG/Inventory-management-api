@@ -24,8 +24,8 @@ func (h *Handler) CreateTransaction(c *gin.Context) {
 		return
 	}
 
-	user, ok := currentUser.(user.User)
-	if !ok {
+	user, ok := currentUser.(*user.User)
+	if !ok || user == nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user context"})
 		return
 	}
@@ -36,7 +36,7 @@ func (h *Handler) CreateTransaction(c *gin.Context) {
 		return
 	}
 
-	newTransaction, err := h.svc.CreateTransaction(input, user)
+	newTransaction, err := h.svc.CreateTransaction(input, *user)
 	if err != nil {
 		// Return a 400 Bad Request for business logic errors (e.g., negative stock-in).
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
