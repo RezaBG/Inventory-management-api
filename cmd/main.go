@@ -60,6 +60,11 @@ func main() {
 	supplierSvc := supplier.NewService(supplierRepo)
 	supplierHandler := supplier.NewHandler(supplierSvc)
 
+	// Inventory Feature
+	inventoryRepo := inventory.NewRepository(database)
+	inventorySvc := inventory.NewService(inventoryRepo, productRepo)
+	inventoryHandler := inventory.NewHandler(inventorySvc)
+
 	// --- Middleware ---
 	authMiddleware := middleware.AuthMiddleware(userSvc)
 
@@ -86,6 +91,8 @@ func main() {
 	{
 		product.RegisterRoutes(protectedRoutes, productHandler)
 		supplier.RegisterRoutes(protectedRoutes, supplierHandler)
+		inventory.RegisterRoutes(protectedRoutes, inventoryHandler)
+
 	}
 
 	// --- Start Server ---
