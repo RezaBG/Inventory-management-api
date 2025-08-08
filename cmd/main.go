@@ -44,25 +44,23 @@ func main() {
 	log.Println("Database migrations completed successfully.")
 
 	// --- Dependency Injection ---
-	// User Feature
+	// 1. Initialize all Repositories
 	userRepo := user.NewRepository(database)
 	refreshTokenRepo := user.NewRefreshTokenRepository(database)
-	userSvc := user.NewService(userRepo, refreshTokenRepo)
-	userHandler := user.NewHandler(userSvc)
-
-	// Product Feature
 	productRepo := product.NewRepository(database)
-	productSvc := product.NewService(productRepo)
-	productHandler := product.NewHandler(productSvc)
-
-	// Supplier Feature
 	supplierRepo := supplier.NewRepository(database)
-	supplierSvc := supplier.NewService(supplierRepo)
-	supplierHandler := supplier.NewHandler(supplierSvc)
-
-	// Inventory Feature
 	inventoryRepo := inventory.NewRepository(database)
+
+	// 2. Initialize all Services
+	userSvc := user.NewService(userRepo, refreshTokenRepo)
+	supplierSvc := supplier.NewService(supplierRepo)
+	productSvc := product.NewService(productRepo, inventoryRepo)
 	inventorySvc := inventory.NewService(inventoryRepo, productRepo)
+
+	// 3. Initialize all Handlers
+	userHandler := user.NewHandler(userSvc)
+	productHandler := product.NewHandler(productSvc)
+	supplierHandler := supplier.NewHandler(supplierSvc)
 	inventoryHandler := inventory.NewHandler(inventorySvc)
 
 	// --- Middleware ---

@@ -13,3 +13,11 @@ type UpdateProductInput struct {
 	Price       float64 `json:"price" binding:"gt=0"`
 	Quantity    int     `json:"quantity" binding:"gte=0"`
 }
+
+type ProductResponse struct {
+	ID                 uint    `json:"id"`
+	Name               string  `json:"name"`
+	Description        string  `json:"description"`
+	Price              float64 `json:"price"`
+	CalculatedQuantity int     `json:"quantity"`
+}

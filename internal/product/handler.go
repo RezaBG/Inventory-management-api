@@ -28,7 +28,7 @@ func (h *Handler) GetProducts(c *gin.Context) {
 func (h *Handler) GetProductByID(c *gin.Context) {
 	id := c.Param("id")
 
-	product, err := h.svc.GetAllProductByID(id)
+	product, err := h.svc.GetProductByID(id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})

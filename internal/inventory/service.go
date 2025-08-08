@@ -3,9 +3,8 @@ package inventory
 import (
 	"fmt"
 
-	"github.com/RezaBG/Inventory-management-api/internal/user"
-
 	"github.com/RezaBG/Inventory-management-api/internal/product"
+	"github.com/RezaBG/Inventory-management-api/internal/user"
 )
 
 type Service interface {

@@ -3,7 +3,6 @@ package inventory
 import (
 	"github.com/RezaBG/Inventory-management-api/internal/user"
 
-	"github.com/RezaBG/Inventory-management-api/internal/product"
 	"gorm.io/gorm"
 )
 
@@ -18,7 +17,6 @@ const (
 type InventoryTransaction struct {
 	gorm.Model
 	ProductID      uint            `json:"productID" gorm:"not null"`
-	Product        product.Product `json:"product"`
 	UserID         uint            `json:"userID" gorm:"not null"`
 	User           user.User       `json:"user"`
 	Type           TransactionType `json:"type" gorm:"not null"`
