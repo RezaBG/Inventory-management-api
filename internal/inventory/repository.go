@@ -1,6 +1,8 @@
 package inventory
 
 import (
+	"database/sql"
+
 	"gorm.io/gorm"
 )
 
@@ -29,12 +31,16 @@ func (r *repository) GetTransactionsForProduct(productID uint) ([]InventoryTrans
 }
 
 func (r *repository) CalculateStockForProduct(productID uint) (int, error) {
-	var total int
+	var total sql.NullInt64
 	err := r.db.Model(&InventoryTransaction{}).
 		Where("product_id = ?", productID).
 		Select("sum(quantity_change)").
 		Row().
 		Scan(&total)
 
-	return total, err
+	if err != nil {
+		return 0, err
+	}
+
+	return int(total.Int64), err
 }
