@@ -4,8 +4,10 @@ A robust and secure RESTful API for managing inventory, built with Go, Gin, and 
 
 ## Features
 
-- **Product Management:** Full CRUD (Create, Read, Update, Delete) functionality for products.
-- **Secure User Management:** User registration with strong password validation.
+- **Product Management:** Full CRUD functionality for products with real-time, calculated stock quantities.
+- **Supplier Management:** Full CRUD functionality for managing suppliers.
+- **Inventory Transaction System:** A full audit trail (ledger) for every stock movement (stock-in, stock-out, adjustment).
+- **Secure User Management:** User registration with strong password validation and secure `bcrypt` hashing.
 - **Professional Authentication:** A complete two-token system using JWTs (short-lived Access Tokens and long-lived Refresh Tokens).
 - **Authorization:** Protected API endpoints via custom middleware, ensuring only authenticated users can access sensitive data.
 - **Clean Architecture:** A clear separation of concerns using a Handler -> Service -> Repository pattern.
@@ -32,45 +34,47 @@ Follow these instructions to get the project set up and running on your local ma
 
 ### Installation & Setup
 
-1.  **Clone the repository:**
+1. **Clone the repository:**
 
-    ```bash
-    git clone [https://github.com/RezaBG/Inventory-management-api.git](https://github.com/RezaBG/Inventory-management-api.git)
-    cd Inventory-management-api
-    ```
+   ```bash
+   git clone [https://github.com/RezaBG/Inventory-management-api.git](https://github.com/RezaBG/Inventory-management-api.git)
+   cd Inventory-management-api
+   ```
 
-2.  **Create the environment file:**
-    Create a file named `.env` in the root of the project and paste the following content. Fill in your PostgreSQL details.
+2. **Create the environment file:**
+   Create a file named `.env` in the root of the project and paste the following content. Fill in your PostgreSQL details.
 
-    ```env
-    # Server Port
-    PORT=8080
+   ```env
+   # Server Port
+   PORT=8080
 
-    # PostgreSQL Database Connection
-    DB_HOST=localhost
-    DB_PORT=5432
-    DB_USER=your_postgres_user
-    DB_PASSWORD=your_postgres_password
-    DB_NAME=inventory_db
+   # PostgreSQL Database Connection
+   DB_HOST=localhost
+   DB_PORT=5432
+   DB_USER=your_postgres_user
+   DB_PASSWORD=your_postgres_password
+   DB_NAME=inventory_db
 
-    # JWT Configuration
-    JWT_SECRET="your-super-long-and-random-secret-key"
-    JWT_ISSUER="inventory-api"
-    ACCESS_TOKEN_EXPIRATION_MINUTES=15
-    REFRESH_TOKEN_EXPIRATION_HOURS=168
-    ```
+   # JWT Configuration
+   JWT_SECRET="your-super-long-and-random-secret-key"
+   JWT_ISSUER="inventory-api"
+   ACCESS_TOKEN_EXPIRATION_MINUTES=15
+   REFRESH_TOKEN_EXPIRATION_HOURS=168
+   ```
 
-3.  **Install dependencies:**
+3. **Install dependencies:**
 
-    ```bash
-    go mod tidy
-    ```
+   ```bash
+   go mod tidy
+   ```
 
-4.  **Run the application:**
-    ```bash
-    go run cmd/main.go
-    ```
-    The server will start, connect to the database, run migrations, and be ready to accept requests on the port you specified (e.g., `http://localhost:8080`).
+4. **Run the application:**
+
+   ```bash
+   go run cmd/main.go
+   ```
+
+   The server will start, connect to the database, run migrations for all tables, and be ready for requests.
 
 ## API Endpoints
 
@@ -82,29 +86,22 @@ Follow these instructions to get the project set up and running on your local ma
 | `POST` | `/login`         | Authenticates a user and returns tokens.               |
 | `POST` | `/refresh_token` | Issues a new access token using a valid refresh token. |
 
-**Example: `POST /register`**
-Body:
+---
 
-```json
-{
-  "name": "Test User",
-  "email": "test@example.com",
-  "password": "P@ssword123!"
-}
-```
-
-## Protected Endpoints (Authentication Required)
+### Protected Endpoints (Authentication Required)
 
 To access these endpoints, you must include an `Authorization` header with a valid Access Token.
 **Format:** `Authorization: Bearer <your_access_token>`
 
-| Method   | Path             | Description                           |
-| :------- | :--------------- | :------------------------------------ |
-| `GET`    | `/products`      | Retrieves a list of all products.     |
-| `POST`   | `/products`      | Creates a new product.                |
-| `GET`    | `/products/{id}` | Retrieves a single product by its ID. |
-| `PUT`    | `/products/{id}` | Updates an existing product.          |
-| `DELETE` | `/products/{id}` | Deletes a product.                    |
+#### Product Endpoints
+
+| Method   | Path             | Description                                                                       |
+| :------- | :--------------- | :-------------------------------------------------------------------------------- |
+| `GET`    | `/products`      | Retrieves a list of all products with calculated quantities.                      |
+| `POST`   | `/products`      | Creates a new product with an initial quantity of 0.                              |
+| `GET`    | `/products/{id}` | Retrieves a single product by its ID with calculated quantity.                    |
+| `PUT`    | `/products/{id}` | Updates a product's details (name, price, etc.). Quantity cannot be changed here. |
+| `DELETE` | `/products/{id}` | Deletes a product.                                                                |
 
 **Example: `POST /products`**
 Header: `Authorization: Bearer eyJhbGciOiJIUzI1Ni...`
@@ -114,8 +111,36 @@ Body:
 {
   "name": "Gaming Laptop",
   "description": "High-end Laptop with RTX 4090",
-  "price": 2499.99,
-  "quantity": 10
+  "price": 2499.99
+}
+```
+
+#### Supplier Endpoints
+
+| Method   | Path              | Description                            |
+| :------- | :---------------- | :------------------------------------- |
+| `GET`    | `/suppliers`      | Retrieves a list of all suppliers.     |
+| `POST`   | `/suppliers`      | Creates a new supplier.                |
+| `GET`    | `/suppliers/{id}` | Retrieves a single supplier by its ID. |
+| `PUT`    | `/suppliers/{id}` | Updates an existing supplier.          |
+| `DELETE` | `/suppliers/{id}` | Deletes a supplier.                    |
+
+#### Inventory Endpoints
+
+| Method | Path                      | Description                                           |
+| :----- | :------------------------ | :---------------------------------------------------- |
+| `POST` | `/inventory/transactions` | Creates a new inventory transaction (e.g., stock-in). |
+
+**Example: `POST /inventory/transactions`**
+Header: `Authorization: Bearer eyJhbGciOiJIUzI1Ni...`
+Body:
+
+```json
+{
+  "productID": 1,
+  "type": "stock_in",
+  "quantityChange": 50,
+  "notes": "Received initial shipment."
 }
 ```
 
@@ -123,5 +148,5 @@ Body:
 
 - [x] **Phase 1: Foundation** - Project setup and Product CRUD.
 - [x] **Phase 2: Core Functionality** - User management and a complete JWT authentication system.
-- [ ] **Phase 3: Expanding the Domain** - Adding `Supplier` management and `Inventory Transaction` logic for a full audit trail.
+- [x] **Phase 3: Expanding the Domain** - Adding `Supplier` management and `Inventory Transaction` logic for a full audit trail.
 - [ ] **Phase 4: Professional Grade** - API documentation (Swagger), advanced validation, and containerization (Docker).
