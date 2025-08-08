@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/RezaBG/Inventory-management-api/internal/inventory"
 	"github.com/RezaBG/Inventory-management-api/internal/middleware"
 	"github.com/RezaBG/Inventory-management-api/internal/platform/db"
 	"github.com/RezaBG/Inventory-management-api/internal/product"
@@ -35,6 +36,7 @@ func main() {
 		&user.User{},
 		&user.RefreshToken{},
 		&supplier.Supplier{},
+		&inventory.InventoryTransaction{},
 	)
 	if err != nil {
 		log.Fatalf("Fatal error: could not run migrations: %v", err)
