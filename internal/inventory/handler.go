@@ -16,6 +16,19 @@ func NewHandler(svc Service) *Handler {
 	return &Handler{svc: svc}
 }
 
+// CreateTransaction creates a new inventory transaction (e.g., stock-in, stock-out).
+// @Summary      Create an inventory transaction
+// @Description  Creates a new stock movement record. Use positive quantity for stock-in, negative for stock-out.
+// @Tags         Inventory
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        transaction body CreateTransactionInput true "Transaction Details"
+// @Success      201  {object}  TransactionResponse //
+// @Failure      400  {object}  map[string]interface{}
+// @Failure      401  {object}  map[string]interface{}
+// @Failure      500  {object}  map[string]interface{}
+// @Router       /inventory/transactions [post]
 func (h *Handler) CreateTransaction(c *gin.Context) {
 	// Authenticate the user
 	currentUser, exists := c.Get("currentUser")

@@ -9,10 +9,10 @@ import (
 )
 
 type Service interface {
-	CreateNewSupplier(input CreateSupplierInput) (*Supplier, error)
-	GetAllSuppliers() ([]Supplier, error)
-	GetSupplierByID(id string) (*Supplier, error)
-	UpdateExistingSupplier(id string, input UpdateSupplierInput) (*Supplier, error)
+	CreateNewSupplier(input CreateSupplierInput) (*SupplierResponse, error)
+	GetAllSuppliers() ([]SupplierResponse, error)
+	GetSupplierByID(id string) (*SupplierResponse, error)
+	UpdateExistingSupplier(id string, input UpdateSupplierInput) (*SupplierResponse, error)
 	DeleteSupplierByID(id string) error
 }
 
@@ -24,7 +24,18 @@ func NewService(repo Repository) Service {
 	return &service{repo: repo}
 }
 
-func (s *service) CreateNewSupplier(input CreateSupplierInput) (*Supplier, error) {
+func toSupplierResponse(supplier Supplier) SupplierResponse {
+	return SupplierResponse{
+		ID:            supplier.ID,
+		CreatedAt:     supplier.CreatedAt,
+		Name:          supplier.Name,
+		ContactPerson: supplier.ContactPerson,
+		Email:         supplier.Email,
+		Phone:         supplier.Phone,
+	}
+}
+
+func (s *service) CreateNewSupplier(input CreateSupplierInput) (*SupplierResponse, error) {
 	newSupplier := Supplier{
 		Name:          input.Name,
 		ContactPerson: input.ContactPerson,
@@ -33,7 +44,7 @@ func (s *service) CreateNewSupplier(input CreateSupplierInput) (*Supplier, error
 	}
 
 	// the service calls the repository to save data
-	_, err := s.repo.Save(&newSupplier)
+	savedSupplier, err := s.repo.Save(&newSupplier)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		// errors.As checks if the error from GORM can be converted to a PgError
@@ -48,19 +59,34 @@ func (s *service) CreateNewSupplier(input CreateSupplierInput) (*Supplier, error
 		return nil, fmt.Errorf("database error: %w", err)
 	}
 
-	return &newSupplier, nil
+	response := toSupplierResponse(*savedSupplier)
+	return &response, nil
 
 }
 
-func (s *service) GetAllSuppliers() ([]Supplier, error) {
-	return s.repo.FindAll()
+func (s *service) GetAllSuppliers() ([]SupplierResponse, error) {
+	suppliers, err := s.repo.FindAll()
+	if err != nil {
+		return nil, err
+	}
+
+	var responses []SupplierResponse
+	for _, supplier := range suppliers {
+		responses = append(responses, toSupplierResponse(supplier))
+	}
+	return responses, nil
 }
 
-func (s *service) GetSupplierByID(id string) (*Supplier, error) {
-	return s.repo.FindByID(id)
+func (s *service) GetSupplierByID(id string) (*SupplierResponse, error) {
+	supplier, err := s.repo.FindByID(id)
+	if err != nil {
+		return nil, err
+	}
+	response := toSupplierResponse(*supplier)
+	return &response, nil
 }
 
-func (s *service) UpdateExistingSupplier(id string, input UpdateSupplierInput) (*Supplier, error) {
+func (s *service) UpdateExistingSupplier(id string, input UpdateSupplierInput) (*SupplierResponse, error) {
 	supplier, err := s.repo.FindByID(id)
 	if err != nil {
 		return nil, err
@@ -72,8 +98,13 @@ func (s *service) UpdateExistingSupplier(id string, input UpdateSupplierInput) (
 	supplier.Email = input.Email
 	supplier.Phone = input.Phone
 
-	// Call the repository's Update method
-	return s.repo.Update(supplier)
+	updatedSupplier, err := s.repo.Update(supplier)
+	if err != nil {
+		return nil, err
+	}
+
+	response := toSupplierResponse(*updatedSupplier)
+	return &response, nil
 }
 
 func (s *service) DeleteSupplierByID(id string) error {

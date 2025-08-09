@@ -7,8 +7,8 @@ type InventoryStockCalculator interface {
 type Service interface {
 	GetAllProducts() ([]ProductResponse, error)
 	GetProductByID(id string) (*ProductResponse, error)
-	CreateNewProduct(input CreateProductInput) (*Product, error)
-	UpdateExistingProduct(id string, input UpdateProductInput) (*Product, error)
+	CreateNewProduct(input CreateProductInput) (*ProductResponse, error)
+	UpdateExistingProduct(id string, input UpdateProductInput) (*ProductResponse, error)
 	DeleteProductByID(id string) error
 }
 
@@ -17,10 +17,10 @@ type service struct {
 	stockCalculator InventoryStockCalculator
 }
 
-func NewService(productRepo Repository, inventoryRepo InventoryStockCalculator) Service {
+func NewService(productRepo Repository, stockCalculator InventoryStockCalculator) Service {
 	return &service{
 		productRepo:     productRepo,
-		stockCalculator: inventoryRepo,
+		stockCalculator: stockCalculator,
 	}
 }
 
@@ -75,7 +75,7 @@ func (s *service) GetProductByID(id string) (*ProductResponse, error) {
 	return response, nil
 }
 
-func (s *service) CreateNewProduct(input CreateProductInput) (*Product, error) {
+func (s *service) CreateNewProduct(input CreateProductInput) (*ProductResponse, error) {
 	newProduct := Product{
 		Name:        input.Name,
 		Description: input.Description,
@@ -83,10 +83,23 @@ func (s *service) CreateNewProduct(input CreateProductInput) (*Product, error) {
 		Quantity:    0,
 	}
 
-	return s.productRepo.Save(&newProduct)
+	savedProduct, err := s.productRepo.Save(&newProduct)
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ProductResponse{
+		ID:                 savedProduct.ID,
+		Name:               savedProduct.Name,
+		Description:        savedProduct.Description,
+		Price:              savedProduct.Price,
+		CalculatedQuantity: 0, // Initial quantity is always 0
+	}
+
+	return response, nil
 }
 
-func (s *service) UpdateExistingProduct(id string, input UpdateProductInput) (*Product, error) {
+func (s *service) UpdateExistingProduct(id string, input UpdateProductInput) (*ProductResponse, error) {
 	product, err := s.productRepo.FindByID(id)
 	if err != nil {
 		return nil, err
@@ -97,8 +110,26 @@ func (s *service) UpdateExistingProduct(id string, input UpdateProductInput) (*P
 	product.Description = input.Description
 	product.Price = input.Price
 
-	// Save the updated product.
-	return s.productRepo.Update(product)
+	updatedProduct, err := s.productRepo.Update(product)
+	if err != nil {
+		return nil, err
+	}
+
+	// after updating, we need to recalculate the stock
+	quantity, err := s.stockCalculator.CalculateStockForProduct(updatedProduct.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ProductResponse{
+		ID:                 updatedProduct.ID,
+		Name:               updatedProduct.Name,
+		Description:        updatedProduct.Description,
+		Price:              updatedProduct.Price,
+		CalculatedQuantity: quantity,
+	}
+
+	return response, nil
 }
 
 func (s *service) DeleteProductByID(id string) error {
