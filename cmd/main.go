@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"os"
 
+	// ADDED: Imports for Swagger documentation
+	_ "github.com/RezaBG/Inventory-management-api/docs" // This links to the generated docs.
 	"github.com/RezaBG/Inventory-management-api/internal/inventory"
 	"github.com/RezaBG/Inventory-management-api/internal/middleware"
 	"github.com/RezaBG/Inventory-management-api/internal/platform/db"
@@ -14,16 +16,17 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 // @title           Inventory Management API
 // @version         1.0
-// @description     This is a sample server for an inventory management system.
+// @description     This is a server for an inventory management system, built with Go and Gin.
 // @termsOfService  http://swagger.io/terms/
 
-// @contact.name   API Support
-// @contact.url    http://www.swagger.io/support
-// @contact.email  support@swagger.io
+// @contact.name   Reza Barzegar
+// @contact.url    https://github.com/RezaBG
 
 // @license.name  Apache 2.0
 // @license.url   http://www.apache.org/licenses/LICENSE-2.0.html
@@ -34,22 +37,19 @@ import (
 // @securityDefinitions.apikey BearerAuth
 // @in header
 // @name Authorization
-
+// @description Type "Bearer" followed by a space and a valid JWT token.
 func main() {
-	// Load environment variables from .env file
+	// ... (godotenv, db connection, migrations, and DI are unchanged) ...
 	err := godotenv.Load(".env")
 	if err != nil {
-		log.Println("Warning: .env file not found, using default environment variables")
+		log.Println("Warning: .env file not found, using environment variables")
 	}
 
-	// Connect to the database
 	database, err := db.ConnectDatabase()
 	if err != nil {
 		log.Fatalf("Fatal error: could not connect to database: %v", err)
 	}
 
-	// --- Run database migrations ---
-	log.Println("Running database migrations...")
 	err = database.AutoMigrate(
 		&product.Product{},
 		&user.User{},
@@ -88,19 +88,18 @@ func main() {
 	// --- Setup Router ---
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "8080" // default port
+		port = "8080"
 	}
 	router := gin.Default()
 
 	// --- Register Routes ---
-	router.GET("/hello", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"message": "Hello, World!",
-		})
-	})
-	// Register the public /login and /register routes.
-	// product.RegisterRoutes(router, productHandler)
+
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
 	user.RegisterAuthRoutes(router, userHandler)
+	router.GET("/hello", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"message": "Hello, World!"})
+	})
 
 	// Protected Routes (Requires a valid JWT)
 	protectedRoutes := router.Group("/")
@@ -109,10 +108,9 @@ func main() {
 		product.RegisterRoutes(protectedRoutes, productHandler)
 		supplier.RegisterRoutes(protectedRoutes, supplierHandler)
 		inventory.RegisterRoutes(protectedRoutes, inventoryHandler)
-
 	}
 
 	// --- Start Server ---
 	log.Printf("Server is running on port %s", port)
-	router.Run(":" + port) // listen and serve on ":8080"
+	router.Run(":" + port)
 }
